@@ -4,6 +4,7 @@ import { InputHandler } from '../input/InputHandler.js';
 import { LANE_COLORS, LANE_KEYS } from '../gameplay/Note.js';
 import { Character }    from '../characters/Character.js';
 import { playHitSound } from '../audio/HitSound.js';
+import { audioGenerator } from '../audio/AudioGenerator.js';
 
 const JUDGEMENTS = [
   { label: 'Sick!', window: 45,  points: 350, color: '#FFDD57' },
@@ -103,9 +104,16 @@ export class PlayState {
     }
     this._chartEndTime = chartEndTime;
 
-    this._audio = new Audio(this.chart.audioSrc);
-    this._audio.volume = 0.7;
-    this.conductor.setAudio(this._audio);
+    if (this.chart.useGeneratedAudio) {
+      this._useGeneratedAudio = true;
+      this._audioKey = this.chart.audioKey;
+      this._audio = null;
+      this.conductor.setAudio(null);
+    } else {
+      this._audio = new Audio(this.chart.audioSrc);
+      this._audio.volume = 0.7;
+      this.conductor.setAudio(this._audio);
+    }
 
     this.input.onHit = (lane) => this._onLaneHit(lane);
 
@@ -187,10 +195,18 @@ export class PlayState {
     this.game.canvas.addEventListener('mousemove', this._pauseMoveHandler);
 
     this.conductor.start();
-    this._audio.play().catch(() => {
-      const resume = () => { this._audio.play(); window.removeEventListener('keydown', resume); };
-      window.addEventListener('keydown', resume);
-    });
+
+    if (this._useGeneratedAudio) {
+      audioGenerator.play(this._audioKey).then(mockAudio => {
+        this._audio = mockAudio;
+        this.conductor.setAudio(mockAudio);
+      }).catch(err => console.error('Audio error:', err));
+    } else if (this._audio) {
+      this._audio.play().catch(() => {
+        const resume = () => { if (this._audio) this._audio.play(); window.removeEventListener('keydown', resume); };
+        window.addEventListener('keydown', resume);
+      });
+    }
   }
 
   _canvasPos(e) {

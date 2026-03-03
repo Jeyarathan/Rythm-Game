@@ -28,11 +28,11 @@ canvas.height = 640;
 const game = new Game(canvas);
 
 const songs = [
-  { title: 'Tutorial',  bpm: 100, audioSrc: 'assets/songs/tutorial.ogg',  chartKey: 'tutorial' },
-  { title: 'Bopeebo',   bpm: 140, audioSrc: 'assets/songs/bopeebo.ogg',   chartKey: 'bopeebo' },
-  { title: 'Fresh',     bpm: 120, audioSrc: 'assets/songs/fresh.ogg',     chartKey: 'fresh' },
-  { title: 'Dadbattle', bpm: 150, audioSrc: 'assets/songs/dadbattle.ogg', chartKey: 'dadbattle' },
-  { title: 'South',     bpm: 160, audioSrc: 'assets/songs/south.ogg',     chartKey: 'south' },
+  { title: 'Tutorial',  bpm: 100, useGeneratedAudio: true, audioKey: 'tutorial', chartKey: 'tutorial' },
+  { title: 'Bopeebo',   bpm: 140, useGeneratedAudio: true, audioKey: 'bopeebo', chartKey: 'bopeebo' },
+  { title: 'Fresh',     bpm: 120, useGeneratedAudio: true, audioKey: 'fresh', chartKey: 'fresh' },
+  { title: 'Dadbattle', bpm: 150, useGeneratedAudio: true, audioKey: 'dadbattle', chartKey: 'dadbattle' },
+  { title: 'South',     bpm: 160, useGeneratedAudio: true, audioKey: 'south', chartKey: 'south' },
 ];
 
 function goToMenu() {
@@ -51,8 +51,9 @@ async function startSong(song, mode = 'normal') {
   // Get chart from embedded data
   const chart = { ...charts[song.chartKey] };
   chart.bpm = song.bpm;
-  chart.audioSrc = song.audioSrc;
   chart.title = song.title;
+  chart.useGeneratedAudio = song.useGeneratedAudio;
+  chart.audioKey = song.audioKey;
 
   const state = new PlayState(game, chart, mode, goToMenu, openChartEditor);
   game.changeState(state);
