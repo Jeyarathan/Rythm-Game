@@ -61,25 +61,11 @@ You can combine Bot with any difficulty!
 - ✅ Instant looping (notes restart immediately)
 - ✅ Pause menu with difficulty switching
 
-## Audio Files
-
-The game supports multiple audio formats: **.ogg**, **.mp3**, **.wav**, and **.m4a**
-
-Place your song files in `assets/songs/` with these names:
-- `tutorial` (+ extension)
-- `bopeebo` (+ extension)
-- `fresh` (+ extension)
-- `dadbattle` (+ extension)
-- `south` (+ extension)
-
-The game will automatically detect which format you're using!
-
 ## Files Included
 
 - `index.html` - Main game page
 - `src/` - All game code
 - `assets/charts/` - Song chart data (embedded in code)
-- `assets/songs/` - Place audio files here
 
 ## Credits
 

@@ -79,29 +79,19 @@ export class NoteManager {
 
   /** Player-side: mark notes past the window as missed */
   update(songPosition) {
-    // FIX: Remove old processed notes to prevent lag
-    // SAFE CULLING: Only removes notes that are hit/missed AND far in the past
+    // Remove old processed notes to prevent lag
     // For hold notes, use the end time instead of start time
     const cullThreshold = songPosition - 2000; // Remove notes more than 2 seconds old
-    let culledCount = 0;
-
     while (this.notes.length > 0) {
       const note = this.notes[0];
       const noteEndTime = note.time + (note.duration || 0);
 
-      // FIX: Safe culling - only remove if processed AND in the past
       if (noteEndTime < cullThreshold && (note.hit || note.missed)) {
         this.notes.shift();
-        culledCount++;
         if (this._nextCheckIndex > 0) this._nextCheckIndex--;
       } else {
         break;
       }
-    }
-
-    // FIX: Debug logging for unusual culling
-    if (culledCount > 10) {
-      console.warn(`⚠️ NoteManager culled ${culledCount} notes at once (position: ${songPosition.toFixed(0)}ms)`);
     }
 
     // Only check notes that haven't been processed yet
@@ -141,25 +131,17 @@ export class NoteManager {
 
   /** Bot-side: auto-hit notes when song reaches them. Returns newly-hit notes. */
   updateBot(songPosition) {
-    // FIX: Remove old processed notes to prevent lag (same safe logic as update())
+    // Remove old processed notes to prevent lag
     const cullThreshold = songPosition - 2000;
-    let culledCount = 0;
-
     while (this.notes.length > 0) {
       const note = this.notes[0];
       const noteEndTime = note.time + (note.duration || 0);
 
       if (noteEndTime < cullThreshold && (note.hit || note.missed)) {
         this.notes.shift();
-        culledCount++;
       } else {
         break;
       }
-    }
-
-    // FIX: Debug logging for unusual culling (bot mode)
-    if (culledCount > 10) {
-      console.warn(`⚠️ NoteManager (Bot) culled ${culledCount} notes at once (position: ${songPosition.toFixed(0)}ms)`);
     }
 
     const hit = [];
@@ -197,52 +179,17 @@ export class NoteManager {
   }
 
   render(ctx, songPosition) {
-    // FIX: Render notes based on Y POSITION, not TIME
-    // Notes should ALWAYS render if visible on screen, regardless of their time value
-    // This prevents notes from disappearing when they're missed but still visible
-
-    const CANVAS_HEIGHT = 750; // Standard canvas height
-    const RENDER_BUFFER = 100; // Extra pixels above/below screen to render
-
-    let renderedCount = 0;
-    let skippedAboveCount = 0;
-    let skippedBelowCount = 0;
+    // Only render notes that are visible on screen
+    // Calculate the time range for visible notes
+    const visibleRangeStart = songPosition - 500; // Notes below screen
+    const visibleRangeEnd = songPosition + (this.hitY + 300) / this.scrollSpeed; // Notes above screen
 
     for (const note of this.notes) {
-      // Calculate actual Y position of this note on screen
-      const noteY = note.getY(songPosition, this.hitY, this.scrollSpeed);
+      // Skip notes that are too far in the past or future
+      if (note.time < visibleRangeStart) continue;
+      if (note.time > visibleRangeEnd) break; // Notes are sorted, so we can break early
 
-      // FIX: Only skip rendering if note is PHYSICALLY off-screen
-      // Skip if note is ABOVE the visible area (not spawned yet)
-      if (noteY < -RENDER_BUFFER) {
-        skippedAboveCount++;
-        continue; // Note hasn't entered screen yet
-      }
-
-      // FIX: Only skip if note is BELOW the visible area (scrolled past)
-      if (noteY > CANVAS_HEIGHT + RENDER_BUFFER) {
-        skippedBelowCount++;
-        continue; // Note has scrolled off bottom of screen
-      }
-
-      // Note is on screen (or close to it) - ALWAYS render it
       note.render(ctx, songPosition, this.hitY, this.scrollSpeed, this.getLaneX(note.lane), this.laneWidth);
-      renderedCount++;
     }
-
-    // Optional: Log render summary for verification (can be removed after testing)
-    // Uncomment below to verify the fix is working:
-    /*
-    if (!this._renderFrameCount) this._renderFrameCount = 0;
-    this._renderFrameCount++;
-    if (this._renderFrameCount % 120 === 0) {
-      console.log('✅ Render (Y-based):', {
-        total: this.notes.length,
-        rendered: renderedCount,
-        skippedAbove: skippedAboveCount,
-        skippedBelow: skippedBelowCount
-      });
-    }
-    */
   }
 }
