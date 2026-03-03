@@ -131,6 +131,13 @@ export class PlayState {
         return;
       }
 
+      // Toggle bot mode with B key
+      if (e.key === 'b' || e.key === 'B') {
+        this._botMode = !this._botMode;
+        console.log(`🤖 Bot mode: ${this._botMode ? 'ON' : 'OFF'}`);
+        return;
+      }
+
       // Edit mode controls
       if (this._editMode) {
         if (e.key === '1') {
