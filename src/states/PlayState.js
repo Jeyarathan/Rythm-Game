@@ -211,11 +211,6 @@ export class PlayState {
     this.bgParticles = [];
     this.hitBurstParticles = [];
     this.characterNoteParticles = [];
-
-    // FIX BUG 2: Deferred loop reset flag
-    // Prevents race condition where onLoop callback modifies state mid-frame
-    this._loopResetPending = false;
-
     this._initBgParticles();
   }
 
@@ -239,20 +234,9 @@ export class PlayState {
       ? (this.chart.notes ?? []).filter((_, i) => i % 2 === 0)
       : (this.chart.notes ?? []);
 
-    // FIX BUG 2: Store normalized plain objects (not Note instances) for safe looping
-    // This ensures loadNotes() always receives consistent raw data on every loop
-    this._originalPlayerNotes = playerNotes.map(n => ({
-      lane: n.lane,
-      time: n.time,
-      type: n.type ?? 'normal',
-      duration: n.duration ?? 0
-    }));
-    this._originalOpponentNotes = (this.chart.opponentNotes ?? []).map(n => ({
-      lane: n.lane,
-      time: n.time,
-      type: n.type ?? 'normal',
-      duration: n.duration ?? 0
-    }));
+    // Store original note data for looping
+    this._originalPlayerNotes = playerNotes;
+    this._originalOpponentNotes = this.chart.opponentNotes ?? [];
 
     this.playerNotes.loadNotes(playerNotes);
     this.opponentNotes.loadNotes(this.chart.opponentNotes ?? []);
@@ -482,11 +466,12 @@ export class PlayState {
     // Start audio - either generated or file-based
     if (this._useGeneratedAudio) {
       // Set up loop callback BEFORE starting audio
-      // FIX BUG 2: Set flag instead of immediate reset to avoid mid-frame race condition
-      // The actual reset happens at the start of update() on a clean frame boundary
       audioGenerator.onLoop = () => {
-        console.log('Audio looped - reset pending');
-        this._loopResetPending = true; // Set flag only, actual reset in update()
+        console.log('Audio looped - resetting');
+        this.playerNotes.reset();
+        this.opponentNotes.reset();
+        this.conductor.reset();
+        this.lead = 0;
       };
 
       // Use AudioGenerator for procedural music
@@ -1125,30 +1110,6 @@ export class PlayState {
   // ─── Update ────────────────────────────────────────────────────────────────
 
   update(dt) {
-    // FIX BUG 2: Handle deferred loop reset at frame boundary (MUST be first!)
-    // This prevents race condition where onLoop modifies notes mid-frame
-    // Uses loadNotes() to restore ALL original notes (including those culled by shift())
-    if (this._loopResetPending) {
-      this._loopResetPending = false;
-
-      // FIX: Use loadNotes() NOT reset() - this reloads ALL original notes
-      // reset() only clears flags on existing notes, doesn't restore culled ones
-      this.playerNotes.loadNotes(this._originalPlayerNotes);
-      this.opponentNotes.loadNotes(this._originalOpponentNotes);
-
-      // Reset timing and health
-      this.conductor.reset();
-      this.lead = 0;
-
-      // Verification logging - note counts should stay constant every loop
-      console.log('✅ Safe loop reset:', {
-        playerNotes: this._originalPlayerNotes.length,
-        opponentNotes: this._originalOpponentNotes.length,
-        songPosition: this.conductor.songPosition
-      });
-      return; // Skip this frame to prevent race conditions
-    }
-
     // FIX: Cap delta time to prevent huge jumps when tab loses focus
     // Even though Game.js caps it, this is a defensive measure
     const originalDt = dt;
@@ -1334,9 +1295,21 @@ export class PlayState {
       return;
     }
 
-    // FIX BUG 2: Loop detection removed - onLoop callback handles all resets
-    // This prevents double-reset conflict between chart end time and audio loop
-    // All loop resets now go through the _loopResetPending flag system
+    // Loop detection
+    if (this.conductor.songPosition > this._chartEndTime) {
+      if (this._useGeneratedAudio) {
+        // AudioGenerator handles looping automatically
+      } else if (this._audio) {
+        // Manual restart for file-based audio
+        this.playerNotes.reset();
+        this.opponentNotes.reset();
+        this.conductor.reset();
+        this.conductor.start();
+        this._audio.currentTime = 0;
+        this._audio.play().catch(() => {});
+        this.lead = 0;
+      }
+    }
 
     this.opponent.update(dt);
     this.character.update(dt);
