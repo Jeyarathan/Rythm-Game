@@ -1,0 +1,9 @@
+{
+  "name": "fnf-rhythm-game",
+  "version": "0.1.0",
+  "description": "Friday Night Funkin'-style rhythm game built with HTML5 Canvas",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve ."
+  }
+}
